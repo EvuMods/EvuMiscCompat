@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - id: buildid
+        run: |
+          id="$(curl -fsSL https://api.steamcmd.net/v1/info/896660 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["896660"]["depots"]["branches"]["public"]["buildid"])')"
+          echo "id=${id}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: .refs
+          key: refs-${{ steps.buildid.outputs.id }}-${{ hashFiles('deps/bepinex-pack.version', 'deps/jotunn.version') }}
+
+      - name: Verify
+        run: make verify

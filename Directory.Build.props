@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.txt').Trim())</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <Authors>imevul</Authors>
+    <Company>evu</Company>
+    <Copyright>Copyright (c) 2026 imevul</Copyright>
+    <Product>EvuMiscCompat</Product>
+    <Description>Compatibility fixes for other Valheim mods.</Description>
+    <RepositoryUrl>https://github.com/EvuMods/EvuMiscCompat</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RefsDir Condition="'$(RefsDir)' == ''">$(MSBuildThisFileDirectory).refs</RefsDir>
+    <ValheimManaged>$(RefsDir)/Valheim</ValheimManaged>
+    <BepInExCore>$(RefsDir)/BepInEx</BepInExCore>
+    <JotunnLib>$(RefsDir)/Jotunn</JotunnLib>
+  </PropertyGroup>
+</Project>

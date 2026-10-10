@@ -1,0 +1,62 @@
+name: Valheim update
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - id: remote
+        run: |
+          id="$(curl -fsSL https://api.steamcmd.net/v1/info/896660 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["896660"]["depots"]["branches"]["public"]["buildid"])')"
+          pinned="$(tr -d '[:space:]' < .valheim-buildid)"
+          echo "id=${id}" >> "$GITHUB_OUTPUT"
+          if [ "${id}" = "${pinned}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/cache@v4
+        if: steps.remote.outputs.changed == 'true'
+        with:
+          path: .refs
+          key: refs-${{ steps.remote.outputs.id }}-${{ hashFiles('deps/bepinex-pack.version', 'deps/jotunn.version') }}
+
+      - name: Verify
+        id: verify
+        if: steps.remote.outputs.changed == 'true'
+        run: |
+          set -o pipefail
+          make verify 2>&1 | tee verify.log
+
+      - name: Open a failure issue
+        if: failure() && steps.remote.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ID: ${{ steps.remote.outputs.id }}
+        run: bash scripts/report-valheim-failure.sh
+
+      - name: Open the rebuild pull request
+        if: steps.remote.outputs.changed == 'true' && steps.verify.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ID: ${{ steps.remote.outputs.id }}
+        run: bash scripts/open-valheim-pr.sh

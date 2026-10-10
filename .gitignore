@@ -1,0 +1,12 @@
+bin/
+obj/
+.refs/
+dist/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+verify.log
+*.DotSettings.user
+.local.mk

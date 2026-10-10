@@ -1,0 +1,67 @@
+name: Thunderstore
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload, such as v0.1.0. Leave empty to use the selected branch.
+        required: false
+        default: ""
+      game_category:
+        description: Thunderstore category slug for the Valheim update this build targets.
+        required: true
+        default: deep-north-update
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Require Thunderstore token
+        env:
+          TCLI_AUTH_TOKEN: ${{ secrets.TCLI_AUTH_TOKEN }}
+        run: |
+          if [ -z "$TCLI_AUTH_TOKEN" ]; then
+            echo "Add the Thunderstore service account token as the TCLI_AUTH_TOKEN repository secret." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - id: buildid
+        run: |
+          id="$(curl -fsSL https://api.steamcmd.net/v1/info/896660 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["896660"]["depots"]["branches"]["public"]["buildid"])')"
+          echo "id=${id}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: .refs
+          key: refs-${{ steps.buildid.outputs.id }}-${{ hashFiles('deps/bepinex-pack.version', 'deps/jotunn.version') }}
+
+      - name: Package
+        run: make package
+
+      - name: Write Thunderstore config
+        run: bash scripts/write-thunderstore-config.sh "${{ inputs.game_category || 'deep-north-update' }}"
+
+      - name: Install tcli
+        run: |
+          dotnet tool install --global tcli
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Publish
+        env:
+          TCLI_AUTH_TOKEN: ${{ secrets.TCLI_AUTH_TOKEN }}
+        run: |
+          version="$(tr -d '[:space:]' < version.txt)"
+          tcli publish --config-path dist/thunderstore.toml --file "dist/EvuMiscCompat-${version}.zip"
