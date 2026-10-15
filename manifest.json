@@ -1,7 +1,7 @@
 {
     "name": "EvuMiscCompat",
     "description": "Compatibility fixes for other Valheim mods.",
-    "version_number": "0.2.1",
+    "version_number": "0.2.2",
     "website_url": "https://github.com/EvuMods/EvuMiscCompat",
     "dependencies": []
 }
