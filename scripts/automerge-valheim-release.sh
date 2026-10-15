@@ -19,7 +19,8 @@ if ! last="$(git describe --tags --abbrev=0 2>/dev/null)"; then
   exit 0
 fi
 
-mapfile -t subjects < <(git log "${last}..HEAD" --format=%s)
+# The rebuild pull request lands with a merge commit, which is not a release note. Only look at real commits.
+mapfile -t subjects < <(git log --no-merges "${last}..HEAD" --format=%s)
 if [[ ${#subjects[@]} -eq 0 ]]; then
   echo "No commits since ${last}."
   exit 0

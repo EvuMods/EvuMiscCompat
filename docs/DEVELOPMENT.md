@@ -43,7 +43,7 @@ The release pull request is the only edit of `version.txt` and of `version_numbe
 
 ## Game updates
 
-`.valheim-buildid` is the dedicated-server build this tree was last verified against. The Valheim update workflow compares it with the public Steam build. A green `make verify` opens a pull request whose message is `fix: rebuild against Valheim <buildid>`. A failed build opens a GitHub issue and does not release.
+`.valheim-buildid` is the dedicated-server build this tree was last verified against. The Valheim update workflow compares it with the public Steam build. A green `make verify` opens a pull request whose message is `fix: rebuild against Valheim <buildid>`. The pull request is merged with a non-conventional merge body so the changelog records that rebuild once. A failed build opens a GitHub issue and does not release.
 
 A green compile means the referenced members and the core tests still hold. It does not play the game. Check dual wielding in a client after a game update that you care about.
 

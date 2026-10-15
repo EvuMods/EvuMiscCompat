@@ -36,9 +36,15 @@ EOF
 number="$(gh pr view --json number --jq .number)"
 echo "Created pull request #${number}"
 
+# GitHub's default merge body is the pull request title. release-please treats a
+# blank line followed by "fix:" as a second conventional commit, so the rebuild
+# would be listed twice. Keep this body free of a conventional commit.
+owner="${GITHUB_REPOSITORY%%/*}"
 merged=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  if gh pr merge "$number" --merge; then
+  if gh pr merge "$number" --merge \
+    --subject "Merge pull request #${number} from ${owner}/${branch}" \
+    --body "Verified make verify against Valheim dedicated-server build ${BUILD_ID}."; then
     merged=1
     break
   fi
