@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/EvuMods/EvuMiscCompat/compare/v0.2.1...v0.2.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ci:** record each Valheim rebuild once ([615efef](https://github.com/EvuMods/EvuMiscCompat/commit/615efef7ae74c29c9250f4d460671bb2df5f1d50))
+
 ## [0.2.1](https://github.com/EvuMods/EvuMiscCompat/compare/v0.2.0...v0.2.1) (2026-10-15)
 
 
