@@ -128,6 +128,14 @@ find_managed() {
   return 1
 }
 
+valheim_refs_present() {
+  local required
+  [[ -f "$REFS/valheim.buildid" ]] || return 1
+  for required in "${REQUIRED_DLLS[@]}"; do
+    [[ -f "$REFS/Valheim/$required" ]] || return 1
+  done
+}
+
 copy_valheim() {
   local managed="$1"
   local buildid="$2"
@@ -165,14 +173,14 @@ fetch_valheim() {
 
   local buildid
   if ! buildid="$(current_buildid)"; then
-    if [[ -f "$REFS/Valheim/assembly_valheim.dll" ]]; then
-      echo "fetch-refs: could not read the current Valheim build id; keeping build $(cat "$REFS/valheim.buildid" 2>/dev/null || echo unknown) already in .refs" >&2
+    if valheim_refs_present; then
+      echo "fetch-refs: could not read the current Valheim build id; keeping build $(<"$REFS/valheim.buildid") already in .refs" >&2
       return
     fi
     echo "fetch-refs: could not read the current Valheim build id and .refs has no Valheim assemblies" >&2
     exit 1
   fi
-  if [[ -f "$REFS/Valheim/assembly_valheim.dll" && "$(cat "$REFS/valheim.buildid" 2>/dev/null || true)" == "$buildid" ]]; then
+  if valheim_refs_present && [[ "$(<"$REFS/valheim.buildid")" == "$buildid" ]]; then
     return
   fi
 
@@ -239,7 +247,10 @@ fetch_valheim() {
 fetch_bepinex
 if [[ "$FETCH_JOTUNN" == 1 ]]; then
   fetch_jotunn
-  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Jotunn $JOTUNN_VERSION, Valheim build $(cat "$REFS/valheim.buildid")"
+fi
+fetch_valheim
+if [[ "$FETCH_JOTUNN" == 1 ]]; then
+  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Jotunn $JOTUNN_VERSION, Valheim build $(<"$REFS/valheim.buildid")"
 else
-  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Valheim build $(cat "$REFS/valheim.buildid")"
+  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Valheim build $(<"$REFS/valheim.buildid")"
 fi
