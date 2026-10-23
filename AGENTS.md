@@ -13,12 +13,14 @@ These instructions apply to the EvuMiscCompat repository.
 
 EvuMiscCompat is a collection of compatibility fixes. The first fix restores Dual Wield's offhand equip when Trinkets Unbound 0.3.0 has shifted the `Humanoid.EquipItem` compare. The repair calls Dual Wield's `CheckDualOneHandedWeaponEquip`. It does not reimplement skill, spear, or exclusion rules.
 
-The mod loads on a dedicated server and on every client. It has no settings. Dual Wield (`org.bepinex.plugins.dualwield`) and Trinkets Unbound (`jello.trinketsunbound`) are soft dependencies. Jotunn is not a dependency.
+The mod loads on a dedicated server and on every client. Dual Wield (`org.bepinex.plugins.dualwield`), Trinkets Unbound (`jello.trinketsunbound`), and Venture Location Reset (`com.orianaventure.mod.LocationReset`) are soft dependencies. Jotunn is not a dependency.
+
+The player dungeon reset is the `resetdungeon` chat command. It runs only when Venture Location Reset is loaded, and `Location reset` / `Enabled` turns it off. The other settings for that command are in [docs/CONFIGURATION.md](docs/CONFIGURATION.md). On a server that has this mod, clients follow the server's values.
 
 ## Project Split
 
-- `src/EvuMiscCompat.Core` is `netstandard2.0` and has no Unity types. The EquipItem window rule lives here so it can be tested without the game.
-- `src/EvuMiscCompat` is the `net48` BepInEx plugin. It patches `Humanoid.EquipItem` at `Priority.Last` and resolves Dual Wield's private method at runtime.
+- `src/EvuMiscCompat.Core` is `netstandard2.0` and has no Unity types. The EquipItem window rule and the dungeon-reset command rules live here so they can be tested without the game.
+- `src/EvuMiscCompat` is the `net48` BepInEx plugin. It patches `Humanoid.EquipItem` at `Priority.Last` and resolves Dual Wield's private method at runtime. The player dungeon reset resolves Venture Location Reset's `TryReset` the same way.
 - `tests/EvuMiscCompat.Core.Tests` covers the core. In-game checks are manual.
 
 ## Verification

@@ -2,9 +2,9 @@
 
 ## Layout
 
-- `src/EvuMiscCompat.Core` holds the EquipItem instruction-window rule. It targets `netstandard2.0` and does not reference Unity.
-- `src/EvuMiscCompat` is the BepInEx plugin (`net48`). It patches `Humanoid.EquipItem` last and, when Dual Wield is loaded, puts `CheckDualOneHandedWeaponEquip` back on the one-handed compare if that call is missing.
-- `tests/EvuMiscCompat.Core.Tests` covers the window. In-game checks are manual.
+- `src/EvuMiscCompat.Core` holds the EquipItem instruction-window rule and the player dungeon-reset rules. It targets `netstandard2.0` and does not reference Unity.
+- `src/EvuMiscCompat` is the BepInEx plugin (`net48`). It patches `Humanoid.EquipItem` last and, when Dual Wield is loaded, puts `CheckDualOneHandedWeaponEquip` back on the one-handed compare if that call is missing. When Venture Location Reset is loaded, it also handles the `resetdungeon` chat command and calls that mod's `TryReset`.
+- `tests/EvuMiscCompat.Core.Tests` covers the window and the reset rules. In-game checks are manual.
 
 Trinkets Unbound 0.3.0 inserts `ldarg.0`, `ldarg.1`, and `call GetAssignmentType` between the item-type load and `ldc.i4.3` on that compare. Dual Wield 1.0.12 only recognizes the vanilla five-instruction shape, so its offhand call never lands and a second one-handed weapon stays in the right hand. This mod emits the same five instructions Dual Wield would have emitted, using Dual Wield's own method. Skill checks, the spear exclusion, and the exclusion list stay in Dual Wield.
 
@@ -57,3 +57,13 @@ There is no automated playtest here. After an equip change, confirm:
 - Dual Wield and Trinkets Unbound together equip a second axe in the offhand.
 - Trinkets Unbound still equips a second trinket.
 - A spear, or an item on Dual Wield's exclusion list, does not move to the offhand.
+
+After a dungeon-reset change, with Venture Location Reset loaded, confirm:
+
+- `resetdungeon` in chat resets the nearest dungeon and does not appear as a chat line.
+- With `On nearby activity`, an empty door resets without a dialog, and a grave or a player-built piece asks first.
+- With `Always`, an empty door asks too. With `Never`, a grave does not ask.
+- A player inside the dungeon, or another player in the wipe area, refuses the reset in every confirmation mode.
+- A second command inside the cooldown refuses.
+- `Enabled` set to false turns the chat command off.
+- The admin console command `resetlocations` is unchanged.

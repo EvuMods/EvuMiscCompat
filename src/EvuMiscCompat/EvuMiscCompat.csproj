@@ -34,6 +34,10 @@
       <HintPath>$(ValheimManaged)/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="SoftReferenceableAssets">
+      <HintPath>$(ValheimManaged)/SoftReferenceableAssets.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine" Condition="Exists('$(ValheimManaged)/UnityEngine.dll')">
       <HintPath>$(ValheimManaged)/UnityEngine.dll</HintPath>
       <Private>false</Private>
