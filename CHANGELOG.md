@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/EvuMods/EvuMiscCompat/compare/v0.2.1...v0.3.0) (2026-10-23)
+
+
+### Features
+
+* let players force-reset the nearest dungeon from chat ([de7d35e](https://github.com/EvuMods/EvuMiscCompat/commit/de7d35e601a17bca610b9771030b6f0bdce88a27))
+
+
+### Bug Fixes
+
+* **ci:** record each Valheim rebuild once ([615efef](https://github.com/EvuMods/EvuMiscCompat/commit/615efef7ae74c29c9250f4d460671bb2df5f1d50))
+* download Valheim assemblies during reference fetch ([3a85b4d](https://github.com/EvuMods/EvuMiscCompat/commit/3a85b4d56c35352b8daf3956cd05198a15202679))
+
 ## [0.2.1](https://github.com/EvuMods/EvuMiscCompat/compare/v0.2.0...v0.2.1) (2026-10-15)
 
 
