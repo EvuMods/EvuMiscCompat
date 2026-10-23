@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
-# Download BepInEx, Jotunn, and Valheim dedicated-server assemblies into .refs/.
+# Download BepInEx, optional Jotunn, and Valheim dedicated-server assemblies into .refs/.
 # Game binaries are not committed. VALHEIM_INSTALL overrides the Steam download.
 set -euo pipefail
+
+# Per-mod settings. The rest of this script is the same in every Valheim mod.
+MOD_NAME=EvuMiscCompat
+FETCH_JOTUNN=1
+DELETE_SERVER_INSTALL=0
+# An empty VALHEIM_DLLS copies every Managed *.dll.
+VALHEIM_DLLS=()
+REQUIRED_DLLS=(
+  assembly_valheim.dll
+  SoftReferenceableAssets.dll
+  UnityEngine.CoreModule.dll
+)
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REFS="$ROOT/.refs"
 CACHE="$REFS/cache"
 BEPINEX_VERSION="$(tr -d '[:space:]' < "$ROOT/deps/bepinex-pack.version")"
-JOTUNN_VERSION="$(tr -d '[:space:]' < "$ROOT/deps/jotunn.version")"
 APP_ID="896660"
-mkdir -p "$REFS/BepInEx" "$REFS/Valheim" "$REFS/Jotunn" "$CACHE"
+mkdir -p "$REFS/BepInEx" "$REFS/Valheim" "$CACHE"
+if [[ "$FETCH_JOTUNN" == 1 ]]; then
+  JOTUNN_VERSION="$(tr -d '[:space:]' < "$ROOT/deps/jotunn.version")"
+  mkdir -p "$REFS/Jotunn"
+fi
 
 require_file() {
   if [[ ! -f "$1" ]]; then
@@ -31,7 +46,7 @@ fetch_bepinex() {
 
   local zip="$CACHE/BepInExPack_Valheim-${BEPINEX_VERSION}.zip"
   if [[ ! -f "$zip" ]]; then
-    curl -fL --retry 3 -A "EvuMiscCompat" -o "$zip" \
+    curl -fL --retry 3 -A "$MOD_NAME" -o "$zip" \
       "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/${BEPINEX_VERSION}/"
   fi
   rm -rf "$CACHE/bepinex-pack"
@@ -51,7 +66,7 @@ fetch_jotunn() {
 
   local zip="$CACHE/Jotunn-${JOTUNN_VERSION}.zip"
   if [[ ! -f "$zip" ]]; then
-    curl -fL --retry 3 -A "EvuMiscCompat" -o "$zip" \
+    curl -fL --retry 3 -A "$MOD_NAME" -o "$zip" \
       "https://thunderstore.io/package/download/ValheimModding/Jotunn/${JOTUNN_VERSION}/"
   fi
   # Thunderstore zips may use backslashes, which unzip rejects.
@@ -82,6 +97,14 @@ current_buildid() {
     | "$(python_bin)" -c "import json,sys; d=json.load(sys.stdin); print(d['data']['${APP_ID}']['depots']['branches']['public']['buildid'])"
 }
 
+installed_buildid() {
+  local manifest="$1/steamapps/appmanifest_${APP_ID}.acf"
+  if [[ ! -f "$manifest" ]]; then
+    return 1
+  fi
+  awk -F'"' '/"buildid"/ { print $4; exit }' "$manifest"
+}
+
 find_managed() {
   local root="$1"
   local candidate
@@ -108,16 +131,30 @@ find_managed() {
 copy_valheim() {
   local managed="$1"
   local buildid="$2"
-  find "$managed" -maxdepth 1 -type f -name '*.dll' -exec cp -f {} "$REFS/Valheim/" \;
-  require_file "$REFS/Valheim/assembly_valheim.dll"
-  require_file "$REFS/Valheim/UnityEngine.CoreModule.dll"
+  if [[ ${#VALHEIM_DLLS[@]} -eq 0 ]]; then
+    find "$managed" -maxdepth 1 -type f -name '*.dll' -exec cp -f {} "$REFS/Valheim/" \;
+  else
+    local name
+    for name in "${VALHEIM_DLLS[@]}"; do
+      if [[ -f "$managed/$name" ]]; then
+        cp -f "$managed/$name" "$REFS/Valheim/$name"
+      fi
+    done
+  fi
+  local required
+  for required in "${REQUIRED_DLLS[@]}"; do
+    require_file "$REFS/Valheim/$required"
+  done
   echo "$buildid" > "$REFS/valheim.buildid"
 }
 
 fetch_valheim() {
   if [[ -n "${VALHEIM_INSTALL:-}" ]]; then
     local managed
-    managed="$(find_managed "$VALHEIM_INSTALL")"
+    if ! managed="$(find_managed "$VALHEIM_INSTALL")"; then
+      echo "fetch-refs: no assembly_valheim.dll under VALHEIM_INSTALL=${VALHEIM_INSTALL}" >&2
+      exit 1
+    fi
     local buildid="local"
     if [[ -f "$ROOT/.valheim-buildid" ]]; then
       buildid="$(tr -d '[:space:]' < "$ROOT/.valheim-buildid")"
@@ -127,7 +164,14 @@ fetch_valheim() {
   fi
 
   local buildid
-  buildid="$(current_buildid)"
+  if ! buildid="$(current_buildid)"; then
+    if [[ -f "$REFS/Valheim/assembly_valheim.dll" ]]; then
+      echo "fetch-refs: could not read the current Valheim build id; keeping build $(cat "$REFS/valheim.buildid" 2>/dev/null || echo unknown) already in .refs" >&2
+      return
+    fi
+    echo "fetch-refs: could not read the current Valheim build id and .refs has no Valheim assemblies" >&2
+    exit 1
+  fi
   if [[ -f "$REFS/Valheim/assembly_valheim.dll" && "$(cat "$REFS/valheim.buildid" 2>/dev/null || true)" == "$buildid" ]]; then
     return
   fi
@@ -144,26 +188,58 @@ fetch_valheim() {
     steamcmd="$CACHE/steamcmd/steamcmd.sh"
   fi
 
-  # A fresh SteamCMD often exits 8 with "Missing configuration" on the first
-  # app_update. The same command succeeds once the client has updated itself.
-  local attempt status managed
-  status=1
+  # steamcmd follows ~/.steam/steam into the desktop client and rewrites
+  # libraryfolders.vdf, which drops /mnt/spel/SteamLibrary. A private home
+  # keeps that rewrite off the desktop client.
+  mkdir -p "$CACHE/steamcmd-home"
+  run_steamcmd() {
+    env HOME="$CACHE/steamcmd-home" "$steamcmd" "$@"
+  }
+
+  # A cold SteamCMD exits 8 with "Missing configuration" until it has signed
+  # in once and filled its app cache. Prime the login, then retry the update.
+  set +e
+  run_steamcmd +login anonymous +quit
+  set -e
+
+  local status=0
+  local attempt managed installed
   for attempt in 1 2 3; do
     set +e
-    "$steamcmd" +force_install_dir "$install" +login anonymous +app_update "$APP_ID" validate +quit
+    run_steamcmd +force_install_dir "$install" +login anonymous +app_update "$APP_ID" validate +quit
     status=$?
     set -e
-    if managed="$(find_managed "$install")"; then
+    installed="$(installed_buildid "$install" || true)"
+    if [[ "$installed" == "$buildid" ]] && managed="$(find_managed "$install")"; then
       copy_valheim "$managed" "$buildid"
+      if [[ "$DELETE_SERVER_INSTALL" == 1 ]]; then
+        # Only the Managed DLLs are needed from here on. Dropping the server
+        # install keeps the .refs cache small; a new build id downloads again.
+        rm -rf "$install"
+      fi
       return
     fi
-    echo "fetch-refs: steamcmd attempt ${attempt} exited ${status}; assembly_valheim.dll was not found under ${install}" >&2
-    sleep 5
+    echo "fetch-refs: steamcmd attempt ${attempt} exited ${status}; installed build '${installed:-none}', wanted ${buildid}" >&2
+    # Steam stops issuing request codes for a retired manifest. An old
+    # appmanifest makes the update ask for that manifest, get Access Denied,
+    # and leave the previous build in place.
+    if [[ -n "$installed" && "$installed" != "$buildid" ]]; then
+      mv -f "$install/steamapps/appmanifest_${APP_ID}.acf" \
+        "$install/steamapps/appmanifest_${APP_ID}.acf.stale"
+    fi
+    if [[ "$attempt" -lt 3 ]]; then
+      sleep 3
+    fi
   done
+
+  echo "fetch-refs: steamcmd exit ${status}; Valheim build ${buildid} was not installed under $install" >&2
   exit 1
 }
 
 fetch_bepinex
-fetch_jotunn
-fetch_valheim
-echo "fetch-refs: BepInEx $BEPINEX_VERSION, Jotunn $JOTUNN_VERSION, Valheim build $(cat "$REFS/valheim.buildid")"
+if [[ "$FETCH_JOTUNN" == 1 ]]; then
+  fetch_jotunn
+  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Jotunn $JOTUNN_VERSION, Valheim build $(cat "$REFS/valheim.buildid")"
+else
+  echo "fetch-refs: BepInEx $BEPINEX_VERSION, Valheim build $(cat "$REFS/valheim.buildid")"
+fi
