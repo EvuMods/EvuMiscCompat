@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/EvuMods/EvuMiscCompat/compare/v0.3.1...v0.3.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* rebuild against Valheim 26870897 ([56eddca](https://github.com/EvuMods/EvuMiscCompat/commit/56eddcadc27b59889970878d572f75f673404345))
+
 ## [0.3.1](https://github.com/EvuMods/EvuMiscCompat/compare/v0.3.0...v0.3.1) (2026-10-29)
 
 
